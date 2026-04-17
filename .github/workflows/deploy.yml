@@ -1,0 +1,71 @@
+name: FoodExpress CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_TAG: latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve -var="my_ip=${{ secrets.MY_IP }}"
+
+      - name: Get Terraform outputs
+        working-directory: terraform
+        run: |
+          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+          echo "ECR_REPO=$(terraform output -raw ecr_repository_url)" >> $GITHUB_ENV
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+
+      - name: Build Docker image
+        run: docker build -t foodexpress-app:$IMAGE_TAG .
+
+      - name: Tag image
+        run: docker tag foodexpress-app:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG
+
+      - name: Push image to ECR
+        run: docker push $ECR_REPO:$IMAGE_TAG
+
+      - name: Deploy to EC2 with SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+            docker stop foodexpress-container || true
+            docker rm foodexpress-container || true
+            docker pull $ECR_REPO:$IMAGE_TAG
+            docker run -d --name foodexpress-container -p 80:3000 --restart unless-stopped $ECR_REPO:$IMAGE_TAG
+
+      - name: Deployment complete
+        run: echo "Application deployed successfully at http://${{ env.EC2_PUBLIC_IP }}"

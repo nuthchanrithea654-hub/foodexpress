@@ -44,7 +44,7 @@ resource "aws_security_group" "foodexpress_sg" {
 
 resource "aws_key_pair" "foodexpress_key" {
   key_name   = var.key_name
-  public_key = file(var.public_key_path)
+  public_key = file("${path.module}/${var.public_key_path}")
 }
 
 resource "aws_iam_role" "ec2_role" {

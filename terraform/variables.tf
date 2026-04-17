@@ -15,7 +15,7 @@ variable "key_name" {
 }
 
 variable "public_key_path" {
-  default = "/Users/macbookpro/.ssh/foodexpress-key.pub"
+  default = "foodexpress-key.pub"
 }
 
 variable "my_ip" {

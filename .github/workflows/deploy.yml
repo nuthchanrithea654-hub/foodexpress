@@ -58,12 +58,25 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
+            while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+              echo "Waiting for apt lock..."
+              sleep 5
+            done
+
+            sudo rm -f /var/lib/apt/lists/lock
+            sudo rm -f /var/lib/dpkg/lock*
+            sudo dpkg --configure -a
+
             sudo apt-get update -y
-            sudo apt-get install -y docker.io git
+            sudo apt-get install -y docker.io
+
             sudo systemctl start docker
             sudo systemctl enable docker
 
+            sudo usermod -aG docker ubuntu
+
             cd /home/ubuntu/foodexpress
+
             sudo docker stop foodexpress-container || true
             sudo docker rm foodexpress-container || true
             sudo docker build -t foodexpress-app .

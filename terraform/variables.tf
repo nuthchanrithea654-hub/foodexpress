@@ -11,7 +11,7 @@ variable "instance_type" {
 }
 
 variable "key_name" {
-  default = "foodexpress-key"
+  default = "foodexpress-key-v2"
 }
 
 variable "public_key_path" {

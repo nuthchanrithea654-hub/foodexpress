@@ -5,7 +5,7 @@ provider "aws" {
 resource "aws_default_vpc" "default" {}
 
 resource "aws_security_group" "foodexpress_sg" {
-  name        = "foodexpress-sg-"
+  name        = "foodexpress-sg-v3"
   description = "Allow SSH and HTTP"
   vpc_id      = aws_default_vpc.default.id
 
